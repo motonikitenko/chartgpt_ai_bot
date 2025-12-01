@@ -1,6 +1,9 @@
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, CallbackQueryHandler, CommandHandler
 import os
 from dotenv import load_dotenv
+
+from gpt import ChatGptService
+
 # Загружает переменные из .env файла в переменные окружения
 load_dotenv()
 
@@ -22,21 +25,30 @@ async def start(update, context):
         "gpt": "Задати питання ChatGPT \uD83E\uDDE0"
     })
 
+async def gpt(update, context):
+    dialog.mode = "gpt"
+    await send_photo(update, context, "gpt")
+    msg = load_message("gpt")
+    await send_text(update, context, msg)
+
+async def gpt_dialog(update, context):
+    text = update.message.text
+    prompt = load_prompt("gpt")
+    answer = await chatgpt.send_question(prompt, text)
+    await send_text(update, context, answer)
+
 async def hello(update, context):
-    #await send_text(update, context, "Hello " + update.message.text)
-    await send_text_buttons(update, context, "Hello " + update.message.text, {
-        "start": "START",
-        "stop": "STOP"
-    })
-async def buttons_handler(update, context):
-    query = update.callback_query.data
-    if query == "start":
-        await send_text(update, context, "Started!")
-    elif query == "stop":
-        await send_text(update, context, "Stopped!")
+    if dialog.mode == "gpt":
+        await gpt_dialog(update, context)
+
+dialog = Dialog()
+dialog.mode = None
+
+chatgpt = ChatGptService(token=os.getenv("OPEN_AI_TOKEN"))
 
 app = ApplicationBuilder().token(os.getenv("TELEGRAM_TOKEN")).build()
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("gpt", gpt))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, hello))
-app.add_handler(CallbackQueryHandler(buttons_handler))
+#app.add_handler(CallbackQueryHandler(buttons_handler))
 app.run_polling()
