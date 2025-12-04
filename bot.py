@@ -27,20 +27,20 @@ async def start(update, context):
 
 async def gpt(update, context):
     dialog.mode = "gpt"
-    await send_photo(update, context, "gpt")
-    msg = load_message("gpt")
+    await send_photo(update, context, dialog.mode)
+    msg = load_message(dialog.mode)
     await send_text(update, context, msg)
 
 async def gpt_dialog(update, context):
     text = update.message.text
-    prompt = load_prompt("gpt")
+    prompt = load_prompt(dialog.mode)
     answer = await chatgpt.send_question(prompt, text)
     await send_text(update, context, answer)
 
 async def date(update, context):
     dialog.mode = "date"
-    await send_photo(update, context, "date")
-    msg = load_message("date")
+    await send_photo(update, context, dialog.mode)
+    msg = load_message(dialog.mode)
     await send_text_buttons(update, context, msg, {
         "date_grande": "Аріана Гранде",
         "date_robbie": "Марго Роббі ",
@@ -65,8 +65,8 @@ async def date_dialog(update, context):
 
 async def message(update, context):
     dialog.mode = "message"
-    await send_photo(update, context, "message")
-    msg = load_message("message")
+    await send_photo(update, context, dialog.mode)
+    msg = load_message(dialog.mode)
     await send_text_buttons(update, context, msg, {
         "message_next": "Написати повідомлення",
         "message_date": "Запросити на побачення",
@@ -87,6 +87,73 @@ async def message_dialog(update, context):
     text = update.message.text
     dialog.list.append(text)
 
+async def profile(update, context):
+    dialog.mode = "profile"
+    await send_photo(update, context, dialog.mode)
+    msg = load_message(dialog.mode)
+    await send_text(update, context, msg)
+    dialog.user.clear()
+    dialog.counter = 0
+
+    await send_text(update, context, "Скільки Вам років ?")
+
+async def profile_dialog(update, context):
+    text = update.message.text
+    dialog.counter += 1
+    if dialog.counter == 1:
+        dialog.user["age"] = text
+        await send_text(update, context, "Ким Ви працюєте ?")
+    elif dialog.counter == 2:
+        dialog.user["occupation"] = text
+        await send_text(update, context, "Яке у Вас хобі ?")
+    elif dialog.counter == 3:
+        dialog.user["hobby"] = text
+        await send_text(update, context, "Що Вам НЕ подобається в людях ?")
+    elif dialog.counter == 4:
+        dialog.user["annoys"] = text
+        await send_text(update, context, "Мета знайомства ?")
+    elif dialog.counter == 5:
+        dialog.user["goals"] = text
+        prompt = load_prompt(dialog.mode)
+        user_info = dialog_user_info_to_str(dialog.user)
+        my_message = await send_text(update, context, "ChatGPT 🧠 генерує Ваш профіль. Зачекайте кілька секунд...")
+        answer = await chatgpt.send_question(prompt, user_info)
+        await my_message.edit_text(answer)
+
+
+async def opener(update, context):
+    dialog.mode = "opener"
+    await send_photo(update, context, dialog.mode)
+    msg = load_message(dialog.mode)
+    await send_text(update, context, msg)
+    dialog.user.clear()
+    dialog.counter = 0
+
+    await send_text(update, context, "Ім'я партнера ?")
+
+
+async def opener_dialog(update, context):
+    text = update.message.text
+    dialog.counter += 1
+    if dialog.counter == 1:
+        dialog.user["name"] = text
+        await send_text(update, context, "Скільки років партнеру?")
+    elif dialog.counter == 2:
+        dialog.user["age"] = text
+        await send_text(update, context, "Оцініть зовнішність 1-10 балів?")
+    elif dialog.counter == 3:
+        dialog.user["handsome"] = text
+        await send_text(update, context, "Ким працює?")
+    elif dialog.counter == 4:
+        dialog.user["occupation"] = text
+        await send_text(update, context, "Мета знайомства ?")
+    elif dialog.counter == 5:
+        dialog.user["goals"] = text
+        prompt = load_prompt(dialog.mode)
+        user_info = dialog_user_info_to_str(dialog.user)
+        my_message = await send_text(update, context, "ChatGPT 🧠 генерує Ваше повідомлення...")
+        answer = await chatgpt.send_question(prompt, user_info)
+        await my_message.edit_text(answer)
 
 async def hello(update, context):
     if dialog.mode == "gpt":
@@ -95,12 +162,17 @@ async def hello(update, context):
         await date_dialog(update, context)
     elif dialog.mode == "message":
         await message_dialog(update, context)
-
+    elif dialog.mode == "profile":
+        await profile_dialog(update, context)
+    elif dialog.mode == "opener":
+        await opener_dialog(update, context)
 
 
 dialog = Dialog()
 dialog.mode = None
 dialog.list = []
+dialog.user = {}
+dialog.counter = 0
 
 chatgpt = ChatGptService(token=os.getenv("OPEN_AI_TOKEN"))
 
@@ -109,6 +181,8 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("gpt", gpt))
 app.add_handler(CommandHandler("date", date))
 app.add_handler(CommandHandler("message", message))
+app.add_handler(CommandHandler("profile", profile))
+app.add_handler(CommandHandler("opener", opener))
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, hello))
 
